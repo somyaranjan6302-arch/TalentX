@@ -15,6 +15,7 @@ import { SkillGraphView } from './components/SkillGraphView';
 import { PitchDeckViewer } from './components/PitchDeckViewer';
 import { INITIAL_USER } from './data/mockData';
 import { authApi } from './services/auth';
+import { LoginPage } from './components/LoginPage';
 import { 
   Bell,
   X
@@ -302,7 +303,13 @@ export function App() {
       </main>
     );
   }
-  if (!authUser) return <AuthScreen onAuthenticated={handleAuthenticated} capacityNotice={capacityNotice} />;
+  if (!authUser) {
+    return (
+      <LoginPage
+        authContent={<AuthScreen onAuthenticated={handleAuthenticated} capacityNotice={capacityNotice} />}
+      />
+    );
+  }
   if (authUser.role === 'admin') {
     return <AdminDashboard user={authUser} onLogout={handleLogout} />;
   }
