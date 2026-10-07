@@ -11,7 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
-data/
+data/*
+!data/README.md
+__pycache__/
+*.py[cod]
 .env
 .env.*
 !.env.example

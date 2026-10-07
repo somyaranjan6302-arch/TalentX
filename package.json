@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "start": "node server/index.js",
     "auth:admin:create": "node server/create-admin.js",
+    "test:career": "node --test server/career.test.js server/careerModel.test.js src/utils/careerRecommendations.test.js",
     "test:auth": "node --test server/auth.test.js server/email.test.js"
   },
   "dependencies": {

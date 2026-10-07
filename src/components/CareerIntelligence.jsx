@@ -6,17 +6,13 @@ import {
   CheckCircle2, 
   ArrowRight, 
   Cpu, 
-  TrendingUp, 
-  Layers, 
   Check, 
-  ExternalLink,
-  BookOpen,
-  Code,
   ShieldCheck,
-  ChevronRight,
   Info
 } from 'lucide-react';
 import { ROLES_CATALOG } from '../data/mockData';
+import { getCareerRecommendations, skillsMatch } from '../utils/careerRecommendations';
+import { predictCareer } from '../services/career';
 
 export function CareerIntelligence({ 
   user, 
@@ -26,26 +22,35 @@ export function CareerIntelligence({
   initialTab = 'intelligence'
 }) {
   const [activeSubTab, setActiveSubTab] = useState(initialTab); // 'intelligence' | 'gap' | 'roadmap' | 'simulator'
-  const [targetRole, setTargetRole] = useState("Data Scientist");
+  const [targetRole, setTargetRole] = useState(
+    () => ROLES_CATALOG[user.targetRole] ? user.targetRole : 'Data Scientist'
+  );
+  const [skillInput, setSkillInput] = useState('');
+  const [additionalSkills, setAdditionalSkills] = useState([]);
+  const [modelPrediction, setModelPrediction] = useState(null);
+  const [modelError, setModelError] = useState('');
+  const [isModelLoading, setIsModelLoading] = useState(false);
 
   // Career Simulator State (Slide 12)
   const [simulatedSkills, setSimulatedSkills] = useState([]);
 
-  const currentSkillNames = user.skills.map(s => s.name);
+  const profileSkills = Array.isArray(user.skills) ? user.skills : [];
+  const currentSkillNames = profileSkills.map(skill => skill.name).filter(Boolean);
+  const candidateSkillNames = [...new Set([...currentSkillNames, ...additionalSkills])];
+  const recommendations = getCareerRecommendations(candidateSkillNames);
+  const topRecommendation = recommendations[0];
   const selectedRoleData = ROLES_CATALOG[targetRole] || ROLES_CATALOG["Data Scientist"];
 
   // Calculate Match for Target Role
   const allTargetSkills = [...selectedRoleData.requiredSkills, ...selectedRoleData.advancedSkills];
-  const matchedTargetSkills = allTargetSkills.filter(s => currentSkillNames.some(cs => cs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(cs.toLowerCase())));
+  const matchedTargetSkills = allTargetSkills.filter(skill => candidateSkillNames.some(candidateSkill => skillsMatch(candidateSkill, skill)));
   const missingTargetSkills = allTargetSkills.filter(s => !matchedTargetSkills.includes(s));
-  const baseMatchPercent = Math.round((matchedTargetSkills.length / allTargetSkills.length) * 100);
+  const baseMatchPercent = recommendations.find(role => role.title === targetRole)?.score ?? 0;
 
   // Simulation Calculations
-  const combinedCurrentAndSim = [...currentSkillNames, ...simulatedSkills];
-  const simulatedMatchedSkills = allTargetSkills.filter(s => 
-    combinedCurrentAndSim.some(cs => cs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(cs.toLowerCase()))
-  );
-  const simulatedMatchPercent = Math.min(100, Math.round((simulatedMatchedSkills.length / allTargetSkills.length) * 100));
+  const combinedCurrentAndSim = [...candidateSkillNames, ...simulatedSkills];
+  const simulatedMatchPercent = getCareerRecommendations(combinedCurrentAndSim)
+    .find(role => role.title === targetRole)?.score ?? 0;
 
   const toggleSimulatedSkill = (skill) => {
     if (simulatedSkills.includes(skill)) {
@@ -66,8 +71,32 @@ export function CareerIntelligence({
 
   const roadmapReadiness = Math.round((completedSteps.length / 5) * 100);
 
+  const analyzeSkills = async event => {
+    event.preventDefault();
+    const parsedSkills = [...new Set(
+      skillInput.split(/[,|]/).map(skill => skill.trim()).filter(Boolean)
+    )];
+    const skillsToAnalyze = [...new Set([...currentSkillNames, ...parsedSkills])];
+    if (skillsToAnalyze.length === 0) {
+      setModelError('Add at least one skill or save skills to your profile before analyzing.');
+      return;
+    }
+
+    setAdditionalSkills(parsedSkills);
+    setModelError('');
+    setModelPrediction(null);
+    setIsModelLoading(true);
+    try {
+      setModelPrediction(await predictCareer(skillsToAnalyze));
+    } catch (error) {
+      setModelError(error.message);
+    } finally {
+      setIsModelLoading(false);
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="career-ai-view" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Sub Header Navigation */}
       <div style={{
         display: 'flex',
@@ -83,7 +112,7 @@ export function CareerIntelligence({
             <Compass size={24} color="#35A36A" /> AI Career Intelligence & Gap Analysis
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Data-backed career matching, explainable gap diagnostics, personalized action roadmap, and interactive simulator.
+            Skill-based career recommendations, explainable gap diagnostics, a personalized roadmap, and an interactive simulator.
           </p>
         </div>
 
@@ -127,7 +156,7 @@ export function CareerIntelligence({
 
       {/* VIEW 1: AI CAREER INTELLIGENCE (Slide 9) */}
       {activeSubTab === 'intelligence' && (
-        <div>
+        <div className="career-ai-content">
           <div style={{
             background: 'rgba(34, 128, 74, 0.08)',
             border: '1px solid rgba(34, 128, 74, 0.3)',
@@ -143,14 +172,14 @@ export function CareerIntelligence({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                 <Sparkles size={18} color="#35B879" />
                 <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.04em' }}>
-                  AI RECOMMENDATION ENGINE
+                  TALENTX CAREER MATCH ENGINE
                 </span>
               </div>
               <h3 style={{ fontSize: '1.25rem', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                "What Career Fits Me?"
+                Find the career that fits your skills
               </h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '650px' }}>
-                TalentX continuously cross-references your verified competencies ({user.skills.filter(s => s.verified).map(s => s.name).join(', ')}), academic background, and completed projects against live industry hiring indices.
+                Compare your profile with TalentX role requirements. Your match score is based on skill coverage, with core requirements weighted higher; it is not a hiring probability.
               </p>
             </div>
 
@@ -159,23 +188,146 @@ export function CareerIntelligence({
               <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--accent-emerald)' }}>
                 {user.careerReadiness}%
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Target: {targetRole}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Target: {topRecommendation?.title || targetRole}</div>
             </div>
           </div>
 
+          <form className="career-ai-skill-form" onSubmit={analyzeSkills}>
+            <div>
+              <h3>Personalize your recommendations</h3>
+              <p>Use your saved profile skills, or add skills just for this analysis.</p>
+              {currentSkillNames.length > 0 && (
+                <div className="career-ai-skill-list" aria-label="Skills from your profile">
+                  {profileSkills.filter(skill => skill.name).map(skill => (
+                    <span key={skill.name} className="career-ai-skill-chip">
+                      {skill.name}
+                      {skill.verified && <ShieldCheck size={13} aria-label="Verified" />}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <label className="career-ai-skill-input">
+              <input
+                aria-label="Additional skills to analyze"
+                value={skillInput}
+                onChange={event => setSkillInput(event.target.value)}
+                placeholder="Add skills, e.g. Python, SQL, machine learning"
+                required
+              />
+            </label>
+            <div className="career-ai-skill-actions">
+              <button className="btn-primary" type="submit" disabled={isModelLoading}>
+                <Sparkles size={16} /> {isModelLoading ? 'Analyzing…' : 'Run trained model'}
+              </button>
+              {additionalSkills.length > 0 && (
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  onClick={() => {
+                    setAdditionalSkills([]);
+                    setSkillInput('');
+                    setModelPrediction(null);
+                    setModelError('');
+                  }}
+                >
+                  Reset analysis
+                </button>
+              )}
+            </div>
+          </form>
+
+          {(isModelLoading || modelError || modelPrediction) && (
+            <section className="career-model-result" aria-live="polite">
+              <div className="career-model-heading">
+                <div>
+                  <span className="career-ai-summary-label">TRAINED ON YOUR CAREER DATASET</span>
+                  <h3>{modelPrediction?.modelName || 'Dataset-trained'} career prediction</h3>
+                </div>
+                {modelPrediction && (
+                  <span className="career-model-record-count">
+                    {modelPrediction.datasetRecords.toLocaleString()} postings · {modelPrediction.validationAccuracyPercent}% holdout accuracy
+                  </span>
+                )}
+              </div>
+
+              {isModelLoading && (
+                <p className="career-model-message">Analyzing your skills against the cleaned job dataset…</p>
+              )}
+              {modelError && <p className="career-model-error" role="alert">{modelError}</p>}
+
+              {modelPrediction && (
+                <div className="career-model-grid">
+                  <div className="career-model-prediction">
+                    <span>Best-fit career category</span>
+                    <strong>{modelPrediction.predictedRole}</strong>
+                    <b>{modelPrediction.confidencePercent}% model score</b>
+                    <small>
+                      Model score from job-skill patterns; not a hiring guarantee.
+                    </small>
+                  </div>
+                  <div className="career-model-probabilities">
+                    <h4>Career category scores</h4>
+                    {modelPrediction.roleProbabilities.map(({ role, probabilityPercent }) => (
+                      <div className="career-model-probability" key={role}>
+                        <div><span>{role}</span><b>{probabilityPercent}%</b></div>
+                        <div className="career-model-track">
+                          <span style={{ width: `${probabilityPercent}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="career-model-salaries">
+                    <h4>Salary ranges in this career category</h4>
+                    <p>Share of matching dataset postings. This is historical data, not a personal salary estimate.</p>
+                    {modelPrediction.salaryDistribution.map(salary => (
+                      <div className="career-model-salary" key={salary.code}>
+                        <span>{salary.range}</span>
+                        <div className="career-model-track">
+                          <span style={{ width: `${salary.percentage}%` }} />
+                        </div>
+                        <b>{salary.percentage}%</b>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {topRecommendation && (
+            <div className="career-ai-summary" aria-live="polite">
+              <div className="career-ai-summary-icon"><Sparkles size={19} /></div>
+              <div>
+                <span className="career-ai-summary-label">TOP SKILL MATCH</span>
+                <strong>{topRecommendation.title}</strong>
+                <span>
+                  {topRecommendation.matchedSkills.length
+                    ? `${topRecommendation.matchedSkills.length} matching skills, including ${topRecommendation.matchedSkills.slice(0, 3).join(', ')}.`
+                    : 'Add profile or analysis skills to receive a personalized match.'}
+                </span>
+              </div>
+              <div className="career-ai-summary-score">
+                <strong>{topRecommendation.score}%</strong>
+                <span>role fit</span>
+              </div>
+            </div>
+          )}
+
           {/* Recommended Roles Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
-            {Object.keys(ROLES_CATALOG).map(roleKey => {
-              const role = ROLES_CATALOG[roleKey];
+          <div className="career-ai-role-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '20px' }}>
+            {recommendations.map((recommendation, index) => {
+              const role = recommendation;
               const isTarget = targetRole === role.title;
-              const reqs = [...role.requiredSkills, ...role.advancedSkills];
-              const matches = reqs.filter(s => currentSkillNames.some(cs => cs.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(cs.toLowerCase())));
-              const score = Math.round((matches.length / reqs.length) * 100);
+              const matches = recommendation.matchedSkills;
+              const score = recommendation.score;
+              const nextSkills = recommendation.missingSkills.slice(0, 2);
 
               return (
                 <div
-                  key={roleKey}
+                  key={role.title}
                   className="glass-panel glass-panel-interactive"
+                  data-top-match={index === 0 ? 'true' : undefined}
                   style={{
                     padding: '24px',
                     border: isTarget ? '2px solid var(--primary)' : '1px solid var(--border-subtle)',
@@ -183,7 +335,12 @@ export function CareerIntelligence({
                     position: 'relative'
                   }}
                 >
-                  {isTarget && (
+                  {index === 0 && (
+                    <span className="badge-pill badge-verified" style={{ position: 'absolute', top: '16px', right: '16px' }}>
+                      Best match
+                    </span>
+                  )}
+                  {isTarget && index !== 0 && (
                     <span className="badge-pill badge-indigo" style={{ position: 'absolute', top: '16px', right: '16px' }}>
                       Active Target
                     </span>
@@ -231,18 +388,20 @@ export function CareerIntelligence({
                       <Info size={13} /> WHY TALENTX RECOMMENDS THIS:
                     </div>
                     <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, fontWeight: 500 }}>
-                      {role.whyRecommended}
+                      {matches.length
+                        ? `Your skills match ${matches.slice(0, 3).join(', ')}${nextSkills.length ? `. Build ${nextSkills.join(' and ')} to strengthen this fit.` : ', covering the listed requirements.'}`
+                        : `Start with ${role.requiredSkills.slice(0, 3).join(', ')} to build a foundation for this role.`}
                     </p>
                   </div>
 
                   {/* Required Skills preview */}
                   <div style={{ marginBottom: '16px' }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                      Key Skills ({matches.length}/{reqs.length} matched):
+                      Core Skills ({recommendation.matchedRequiredSkills.length}/{role.requiredSkills.length} matched):
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                       {role.requiredSkills.map((s, idx) => {
-                        const isMatched = currentSkillNames.some(cs => cs.toLowerCase().includes(s.toLowerCase()));
+                        const isMatched = candidateSkillNames.some(cs => skillsMatch(cs, s));
                         return (
                           <span
                             key={idx}
@@ -251,7 +410,7 @@ export function CareerIntelligence({
                               padding: '2px 8px',
                               borderRadius: '4px',
                               background: isMatched ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                              color: isMatched ? '#34D399' : 'var(--text-muted)',
+                              color: isMatched ? '#047857' : 'var(--text-muted)',
                               border: isMatched ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--border-subtle)'
                             }}
                           >
@@ -356,7 +515,8 @@ export function CareerIntelligence({
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {matchedTargetSkills.map((skill, idx) => {
-                  const userSkill = user.skills.find(s => s.name.toLowerCase().includes(skill.toLowerCase()) || skill.toLowerCase().includes(s.name.toLowerCase()));
+                  const userSkill = profileSkills.find(profileSkill => skillsMatch(profileSkill.name, skill));
+                  const isAdditionalSkill = additionalSkills.some(additionalSkill => skillsMatch(additionalSkill, skill));
                   return (
                     <div
                       key={idx}
@@ -385,7 +545,13 @@ export function CareerIntelligence({
                         <div>
                           <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>{skill}</div>
                           <div style={{ fontSize: '0.72rem', color: '#047857', fontWeight: 600 }}>
-                            {userSkill?.verified ? `Verified (${userSkill.score}%) • ${userSkill.level}` : 'Claimed on Profile'}
+                            {userSkill?.verified
+                              ? `Verified (${userSkill.score}%) • ${userSkill.level}`
+                              : userSkill
+                                ? 'Claimed on Profile'
+                                : isAdditionalSkill
+                                  ? 'Added for this analysis'
+                                  : 'Profile skill'}
                           </div>
                         </div>
                       </div>

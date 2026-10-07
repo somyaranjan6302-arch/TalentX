@@ -89,6 +89,12 @@ npm run dev
 
 Visit **`http://localhost:5173/`**. The Vite development server proxies API requests to the PostgreSQL-backed Express server.
 
+### Career AI model
+
+Career AI trains a TF-IDF-weighted Multinomial Naive Bayes classifier from `data/Cleanedanalytics.csv` on the first prediction request. It reads role titles, skill keywords, and salary bands directly from the CSV; no separate Python service is required. The signed-in candidate's skills go through the authenticated TalentX API. The prediction shows role-category scores, salary-range frequencies within the predicted dataset category, and a stratified holdout accuracy; scores are not hiring or personal salary guarantees. The CSV stays Git-ignored. A hosted deployment must provide the dataset file privately to the TalentX service (or set `CAREER_DATASET_PATH` to its mounted location).
+
+For local development without Brevo email credentials, TalentX prints one-time sign-up and password-reset codes in the server terminal. This development-only mode is disabled in production. Local development without `DATABASE_URL` uses an in-memory database; account and profile data reset when the server restarts. Configure a PostgreSQL `DATABASE_URL` for data that must persist.
+
 The server permits up to 50 distinct, active candidate/recruiter accounts at once by default. Admin accounts do not use a user slot. Accounts release their slot when they sign out or when their browser has been inactive for five minutes; an open app tab refreshes its activity every minute. Set `USER_CAPACITY` in `.env` if you want to change this limit. Member profiles, connection requests, accepted connections, feed posts, likes, and direct messages are stored in PostgreSQL and shared between signed-in accounts.
 
 ### Authentication and role access

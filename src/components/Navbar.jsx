@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Home,
   Users,
   Briefcase,
   TrendingUp,
@@ -33,7 +32,7 @@ export function Navbar({
   const [query, setQuery] = useState('');
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
-  const goHome = () => {
+  const goDefaultView = () => {
     if (role === 'recruiter') {
       setActiveView('employer');
     } else {
@@ -51,18 +50,11 @@ export function Navbar({
     }
   };
 
-  // All candidate nav items - completely flat, no subnav
+  // Candidate navigation stays focused on distinct destinations; Career AI is the landing view.
   const candidateNav = [
     {
-      id: 'home',
-      label: 'Home',
-      icon: Home,
-      action: goHome,
-      active: activeView === 'talent' && talentTab === 'career_ai',
-    },
-    {
       id: 'network',
-      label: 'Network',
+      label: 'Networking',
       icon: Users,
       action: () => { setActiveView('talent'); setTalentTab('networking'); },
       active: activeView === 'talent' && talentTab === 'networking',
@@ -155,7 +147,7 @@ export function Navbar({
         minHeight: '60px'
       }}>
         {/* Brand Logo */}
-        <button className="header-brand" onClick={goHome} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', flexShrink: 0, paddingRight: '12px' }}>
+        <button className="header-brand" onClick={goDefaultView} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'none', flexShrink: 0, paddingRight: '12px' }}>
           <div style={{
             width: '32px',
             height: '32px',
@@ -200,7 +192,7 @@ export function Navbar({
               return (
                 <button
                   key={item.id}
-                  className={`nav-item${item.active ? ' active' : ''}`}
+                  className={`nav-item nav-feature-item${item.active ? ' active' : ''}`}
                   onClick={item.action}
                   style={{ minWidth: 'unset', padding: '0 10px' }}
                 >
@@ -275,7 +267,7 @@ export function Navbar({
         {/* Recruiter nav */}
         {role === 'recruiter' && (
           <nav className="primary-nav" style={{ display: 'flex', alignItems: 'stretch', marginLeft: 'auto' }}>
-            <button className={`nav-item${activeView === 'employer' ? ' active' : ''}`} onClick={goHome}>
+            <button className={`nav-item${activeView === 'employer' ? ' active' : ''}`} onClick={goDefaultView}>
               <CheckCircle2 className="nav-icon" size={22} strokeWidth={1.8} />
               <span className="label">Hiring</span>
             </button>
@@ -302,18 +294,18 @@ export function Navbar({
             <button
               className={`mobile-tab${activeView === 'talent' && talentTab === 'career_ai' ? ' active' : ''}`}
               onClick={() => { setActiveView('talent'); setTalentTab('career_ai'); }}
-              aria-label="Home"
+              aria-label="Career AI"
             >
-              <Home size={21} />
-              <span>Home</span>
+              <Compass size={21} />
+              <span>Career AI</span>
             </button>
             <button
               className={`mobile-tab${activeView === 'talent' && talentTab === 'networking' ? ' active' : ''}`}
               onClick={() => { setActiveView('talent'); setTalentTab('networking'); }}
-              aria-label="Network"
+              aria-label="Networking"
             >
               <Users size={21} />
-              <span>Network</span>
+              <span>Networking</span>
             </button>
             <button
               className={`mobile-tab${activeView === 'talent' && talentTab === 'opportunities' ? ' active' : ''}`}
@@ -343,7 +335,7 @@ export function Navbar({
           </>
         ) : (
           <>
-            <button className={`mobile-tab${activeView === 'employer' ? ' active' : ''}`} onClick={goHome}>
+            <button className={`mobile-tab${activeView === 'employer' ? ' active' : ''}`} onClick={goDefaultView}>
               <CheckCircle2 size={21} />
               <span>Hiring</span>
             </button>
